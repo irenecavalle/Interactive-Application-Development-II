@@ -26,6 +26,9 @@ with st.expander("How to Use This App"):
     5. View the *Generation Breakdown* to understand energy sources.
     """)
 
+def get_base_path(subfolder):
+    return os.path.join("sample_data", subfolder)
+
 # --- Load Demand Data ---
 @st.cache_data(ttl=3600)
 def load_demand_data():
