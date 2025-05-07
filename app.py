@@ -1,4 +1,3 @@
-# electricity_dashboard_improved.py
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -26,6 +25,7 @@ with st.expander("How to Use This App"):
     5. View the *Generation Breakdown* to understand energy sources.
     """)
 
+# --- Folder Access Helper ---
 def get_base_path(subfolder):
     return os.path.join("sample_data", subfolder)
 
@@ -33,7 +33,7 @@ def get_base_path(subfolder):
 @st.cache_data(ttl=3600)
 def load_demand_data():
     base_path = get_base_path("demand")
-    files = glob.glob(os.path.join(base_path, "Custom-Report-2025-*-Seguimiento de la demanda de energía eléctrica (MW).csv"))
+    files = glob.glob(os.path.join(base_path, "Custom-Report-2025-??-??-Seguimiento de la demanda de energía eléctrica (MW).csv"))
     all_data = []
     for file_path in files:
         try:
@@ -63,15 +63,15 @@ def load_demand_data():
 @st.cache_data(ttl=3600)
 def load_generation_data():
     base_path = get_base_path("generation")
-    files = glob.glob(os.path.join(base_path, "Custom-Report-2025--Estructura de generación (MW).csv"))
+    files = glob.glob(os.path.join(base_path, "Custom-Report-2025-??-??-Estructura de generación (MW).csv"))
     all_data = []
     for file_path in files:
         try:
             filename = os.path.basename(file_path)
-            match = re.search(r"2025-(\d{1,2})-(\d{1,2})", filename)
+            match = re.search(r"2025-(\d{2})-(\d{2})", filename)
             if not match:
                 continue
-            report_date = f"2025-{int(match.group(1)):02d}-{int(match.group(2)):02d}"
+            report_date = f"2025-{match.group(1)}-{match.group(2)}"
             df = pd.read_csv(file_path, encoding="ISO-8859-1", sep=";", on_bad_lines='skip')
             raw_lines = df.iloc[:, 0].tolist()
             clean_lines = [line.strip() for line in raw_lines if "," in line]
@@ -107,7 +107,7 @@ if st.session_state.dashboard_active:
         st.error("No valid data found. Please check dataset folders.")
         st.stop()
 
-    # Show Detailed Demand Data first
+    # --- Detailed Demand Data ---
     st.markdown("### Detailed Demand Data")
     with st.expander("Show Data Table"):
         styled = data.copy().dropna()
@@ -123,7 +123,7 @@ if st.session_state.dashboard_active:
 
         st.data_editor(styled.style.applymap(highlight, subset=['Daily Change (%)']), use_container_width=True)
 
-    # Then Trend Visualization
+    # --- Trend Visualization ---
     st.markdown("### Trend Visualization")
     unique_dates = sorted(list(set(data.index.date)))
     start_day, end_day = st.date_input("Select day range (between 27-04-2025 and 07-05-2025):", value=(min(unique_dates), max(unique_dates)), min_value=min(unique_dates), max_value=max(unique_dates))
@@ -138,7 +138,7 @@ if st.session_state.dashboard_active:
         fig.update_yaxes(tickformat=",.0f")
         st.plotly_chart(fig, use_container_width=True)
 
-    # Key Performance Metrics
+    # --- Key Performance Metrics ---
     st.markdown("### Key Performance Metrics")
     day_data = data[data.index.date == end_day]
     latest = float(day_data['Real'].iloc[-1]) if not day_data.empty else float("nan")
@@ -160,13 +160,13 @@ if st.session_state.dashboard_active:
         elif m == "VaR (95%)":
             cols[i].metric(m, f"{var_95*100:.2f}%")
 
-    # Generation Breakdown
+    # --- Generation Breakdown ---
     st.markdown("### Generation Breakdown")
     gen_df["Date"] = gen_df["Hora"].dt.date
     selected_gen_date = st.selectbox("Select Date:", sorted(gen_df["Date"].unique()), index=len(gen_df["Date"].unique()) - 1)
     mix = ["Eólica", "Nuclear", "Carbón", "Ciclo combinado", "Solar fotovoltaica", "Solar térmica",
-            "Térmica renovable", "Motores diésel", "Turbina de gas", "Turbina de vapor",
-            "Generación auxiliar", "Cogeneración y residuos"]
+           "Térmica renovable", "Motores diésel", "Turbina de gas", "Turbina de vapor",
+           "Generación auxiliar", "Cogeneración y residuos"]
     daily = gen_df[gen_df["Date"] == selected_gen_date]
     avg_mix = daily[mix].mean().to_frame(name="MW")
     avg_mix = avg_mix[avg_mix["MW"] > 0]
